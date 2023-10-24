@@ -13,18 +13,14 @@
 ### 简答题
 
 1. 
-
-    1. `ch2b_bad_address`
-
-    2. `ch2b_bad_instructions`
-
         
+    ![](https://raw.githubusercontent.com/Jiewyjson/P/main/md/v1/202310242211437.png?token=AXDH2TOXPCHR3YTJK5W2XOLFG7IMU)
 
-    3. `ch2b_bad_register`
+   ![](https://raw.githubusercontent.com/Jiewyjson/P/main/md/v1/202310242210393.png?token=AXDH2TMFMM5LS5IZDHMBYZ3FG7IJI)
 
 
 
-2. 
+3. 
 
     1. 刚进入`_rssore`时，`a0`指向`Trap`上下文之后的内核栈顶
     2. 
