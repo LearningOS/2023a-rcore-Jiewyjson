@@ -1,6 +1,6 @@
 //! Implementation of [`PageTableEntry`] and [`PageTable`].
 
-use super::{frame_alloc, FrameTracker, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
+use super::{frame_alloc, FrameTracker, PhysAddr, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
 use alloc::vec;
 use alloc::vec::Vec;
 use bitflags::*;
@@ -31,6 +31,8 @@ impl PageTableEntry {
     /// Create a new page table entry
     pub fn new(ppn: PhysPageNum, flags: PTEFlags) -> Self {
         PageTableEntry {
+            //左移是把物理页号移到更高的数位,留出足够的空间存放标志位
+            //|是把标志位合并到左移之后的结果中
             bits: ppn.0 << 10 | flags.bits as usize,
         }
     }
@@ -39,6 +41,8 @@ impl PageTableEntry {
         PageTableEntry { bits: 0 }
     }
     /// Get the physical page number from the page table entry
+    ///右移是上面new左移的逆操作
+    /// 通过(1usize << 44) - 1 掩码来保留低44位(即物理页号)
     pub fn ppn(&self) -> PhysPageNum {
         (self.bits >> 10 & ((1usize << 44) - 1)).into()
     }
@@ -94,10 +98,12 @@ impl PageTable {
         let mut result: Option<&mut PageTableEntry> = None;
         for (i, idx) in idxs.iter().enumerate() {
             let pte = &mut ppn.get_pte_array()[*idx];
+            //遍历到叶节点就结束循环
             if i == 2 {
                 result = Some(pte);
                 break;
             }
+            //中间如果有一个节点不存在就顺便创建一个
             if !pte.is_valid() {
                 let frame = frame_alloc().unwrap();
                 *pte = PageTableEntry::new(frame.ppn, PTEFlags::V);
@@ -145,6 +151,7 @@ impl PageTable {
     }
     /// get the token from the page table
     pub fn token(&self) -> usize {
+        //1000(2)左移60位得到一个64位无符号整数，|填充了当前页表的根节点所在的物理页号
         8usize << 60 | self.root_ppn.0
     }
 }
@@ -170,4 +177,20 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
         start = end_va.into();
     }
     v
+}
+
+/// Translate a ptr to a mutable T reference through page table
+pub fn translate_ptr<T>(token: usize, ptr: *const T) -> *mut T {
+    let page_table: PageTable = PageTable::from_token(token);
+
+    let start: usize = ptr as usize;
+    let start_va: VirtAddr = VirtAddr::from(start);
+    let vpn: VirtPageNum = start_va.floor();
+    let ppn: PhysAddr = page_table.translate(vpn).unwrap().ppn().into();
+
+    let offset: usize = start_va.page_offset();
+    let phys_addr: usize = ppn.into();
+    let phys_ptr: *mut T = (offset + phys_addr) as *mut T;
+
+    phys_ptr
 }

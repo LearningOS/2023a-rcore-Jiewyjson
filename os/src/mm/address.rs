@@ -160,7 +160,9 @@ impl VirtPageNum {
     pub fn indexes(&self) -> [usize; 3] {
         let mut vpn = self.0;
         let mut idx = [0usize; 3];
+        //这里三级索引有27位，所以需要9位一组
         for i in (0..3).rev() {
+            //通过九位掩码记录索引
             idx[i] = vpn & 511;
             vpn >>= 9;
         }

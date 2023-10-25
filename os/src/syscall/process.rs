@@ -1,9 +1,12 @@
 //! Process management syscalls
 use crate::{
     config::MAX_SYSCALL_NUM,
+    mm::{translate_ptr, VirtAddr, VirtPageNum},
     task::{
-        change_program_brk, exit_current_and_run_next, suspend_current_and_run_next, TaskStatus,
+        change_program_brk, current_user_token, exit_current_and_run_next, mmap, munmap,
+        set_task_info, suspend_current_and_run_next, TaskStatus,
     },
+    timer::get_time_us,
 };
 
 #[repr(C)]
@@ -17,11 +20,11 @@ pub struct TimeVal {
 #[allow(dead_code)]
 pub struct TaskInfo {
     /// Task status in it's life cycle
-    status: TaskStatus,
+    pub status: TaskStatus,
     /// The numbers of syscall called by task
-    syscall_times: [u32; MAX_SYSCALL_NUM],
+    pub syscall_times: [u32; MAX_SYSCALL_NUM],
     /// Total running time of task
-    time: usize,
+    pub time: usize,
 }
 
 /// task exits and submit an exit code
@@ -43,27 +46,69 @@ pub fn sys_yield() -> isize {
 /// HINT: What if [`TimeVal`] is splitted by two pages ?
 pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
     trace!("kernel: sys_get_time");
-    -1
+    let _us = get_time_us();
+    let k_time = translate_ptr(current_user_token(), _ts);
+    unsafe {
+        *k_time = TimeVal {
+            sec: _us / 1_000_000,
+            usec: _us % 1_000_000,
+        };
+    }
+    0
 }
 
 /// YOUR JOB: Finish sys_task_info to pass testcases
 /// HINT: You might reimplement it with virtual memory management.
 /// HINT: What if [`TaskInfo`] is splitted by two pages ?
 pub fn sys_task_info(_ti: *mut TaskInfo) -> isize {
-    trace!("kernel: sys_task_info NOT IMPLEMENTED YET!");
-    -1
+    trace!("kernel: sys_task_info");
+
+    let k_ti = translate_ptr(current_user_token(), _ti);
+    set_task_info(k_ti);
+    0
 }
 
 // YOUR JOB: Implement mmap.
 pub fn sys_mmap(_start: usize, _len: usize, _port: usize) -> isize {
-    trace!("kernel: sys_mmap NOT IMPLEMENTED YET!");
-    -1
+    trace!("kernel: sys_mmp");
+    let start_va: VirtAddr = _start.into();
+    if !start_va.aligned() {
+        return -1;
+    }
+    if _port & !0x7 != 0 {
+        return -1;
+    }
+
+    if _port & 0x7 == 0 {
+        return -1;
+    }
+
+    if _len == 0 {
+        return 0;
+    }
+
+    let end_va: VirtAddr = (_start + _len).into();
+    let start_vpn: VirtPageNum = start_va.floor();
+    let end_vpn: VirtPageNum = end_va.ceil();
+
+    mmap(start_vpn, end_vpn, _port)
 }
 
 // YOUR JOB: Implement munmap.
 pub fn sys_munmap(_start: usize, _len: usize) -> isize {
-    trace!("kernel: sys_munmap NOT IMPLEMENTED YET!");
-    -1
+    trace!("kernel: sys_munmap");
+    let start_va: VirtAddr = _start.into();
+    if !start_va.aligned() {
+        return -1;
+    }
+    if _len == 0 {
+        return 0;
+    }
+    let end_va: VirtAddr = (_start + _len).into();
+    let start_vpn: VirtPageNum = start_va.floor();
+    let end_vpn: VirtPageNum = end_va.ceil();
+
+    munmap(start_vpn, end_vpn)
 }
 /// change data segment size
 pub fn sys_sbrk(size: i32) -> isize {
