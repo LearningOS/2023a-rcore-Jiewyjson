@@ -13,12 +13,9 @@
 ### 简答题
 
 1. 
-        
-    ![](https://raw.githubusercontent.com/Jiewyjson/P/main/md/v1/202310242211437.png?token=AXDH2TOXPCHR3YTJK5W2XOLFG7IMU)
-
-   ![](https://raw.githubusercontent.com/Jiewyjson/P/main/md/v1/202310242210393.png?token=AXDH2TMFMM5LS5IZDHMBYZ3FG7IJI)
-
-
+    ![](assets/webp.webp)
+   
+   ![](https://wyjson.com/md/v2/202310252240405.png/webp)
 
 3. 
 
